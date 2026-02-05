@@ -38,21 +38,37 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         id: main_version
         run: |
-          # Get the parent commit of the current commit (the previous version on main)
-          PREVIOUS_COMMIT=$(git rev-parse HEAD^ 2>/dev/null || echo "")
+          # Check if this is the first commit by counting total commits
+          COMMIT_COUNT=$(git rev-list --count HEAD 2>/dev/null || echo "0")
           
-          if [ -z "$PREVIOUS_COMMIT" ]; then
-            # If this is the first commit, allow it
+          if [ "$COMMIT_COUNT" -le "1" ]; then
+            # If this is the first commit, set version to 0.0.0 to allow any version
             echo "version=0.0.0" >> $GITHUB_OUTPUT
-            echo "Main branch version: 0.0.0 (first commit)"
+            echo "First commit detected (total commits: $COMMIT_COUNT)"
+            echo "Main branch version: 0.0.0 (first commit - allowing any version)"
           else
-            # Get version from the previous commit
-            git checkout $PREVIOUS_COMMIT
-            MAIN_VERSION=$(cat VERSION | tr -d '[:space:]')
-            echo "version=$MAIN_VERSION" >> $GITHUB_OUTPUT
-            echo "Main branch version (previous commit): $MAIN_VERSION"
-            # Return to current commit
-            git checkout ${{ github.sha }}
+            # Get the parent commit of the current commit (the previous version on main)
+            PREVIOUS_COMMIT=$(git rev-parse HEAD^ 2>/dev/null || echo "")
+            
+            if [ -z "$PREVIOUS_COMMIT" ]; then
+              # Fallback: if HEAD^ fails, treat as first commit
+              echo "version=0.0.0" >> $GITHUB_OUTPUT
+              echo "Main branch version: 0.0.0 (first commit - fallback)"
+            else
+              # Get version from the previous commit
+              git checkout $PREVIOUS_COMMIT 2>/dev/null || true
+              if [ -f VERSION ]; then
+                MAIN_VERSION=$(cat VERSION | tr -d '[:space:]')
+                echo "version=$MAIN_VERSION" >> $GITHUB_OUTPUT
+                echo "Main branch version (previous commit): $MAIN_VERSION"
+              else
+                # If VERSION file doesn't exist in previous commit, treat as first commit
+                echo "version=0.0.0" >> $GITHUB_OUTPUT
+                echo "Main branch version: 0.0.0 (VERSION file not found in previous commit)"
+              fi
+              # Return to current commit
+              git checkout ${{ github.sha }} 2>/dev/null || true
+            fi
           fi
 
       - name: Compare versions
@@ -64,6 +80,21 @@ jobs:
           echo "Comparing versions:"
           echo "  Current: $CURRENT"
           echo "  Main:    $MAIN"
+          
+          # If this is the first commit (MAIN is 0.0.0), require version to be at least 1.0.0
+          if [ "$MAIN" == "0.0.0" ]; then
+            # Convert version to comparable format (e.g., 1.2.3 -> 001002003)
+            CURRENT_NUM=$(echo "$CURRENT" | awk -F. '{printf "%03d%03d%03d", $1, $2, $3}')
+            MIN_VERSION_NUM=$(echo "1.0.0" | awk -F. '{printf "%03d%03d%03d", $1, $2, $3}')
+            
+            if [ "$CURRENT_NUM" -lt "$MIN_VERSION_NUM" ]; then
+              echo "ERROR: First commit must have version at least 1.0.0, but found $CURRENT"
+              exit 1
+            else
+              echo "SUCCESS: First commit detected with version $CURRENT (>= 1.0.0)"
+              exit 0
+            fi
+          fi
           
           # Convert version to comparable format (e.g., 1.2.3 -> 001002003)
           CURRENT_NUM=$(echo "$CURRENT" | awk -F. '{printf "%03d%03d%03d", $1, $2, $3}')
