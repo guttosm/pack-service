@@ -1,0 +1,64 @@
+# Git
+.git
+.gitignore
+
+# GitHub
+.github
+
+# Documentation (keep docs/ for Swagger)
+*.md
+!README.md
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Scripts (used by docker-compose, not needed in image)
+scripts/
+
+# Coverage and test artifacts
+coverage*
+*.test
+*.out
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test utilities (not needed in production)
+internal/testutil
+internal/mocks
+
+# Makefile (not needed in container)
+Makefile
+
+# Docker files (prevent recursive copy)
+Dockerfile
+docker-compose.yml
+docker-compose*.yml
+
+# CI/CD
+.github
+
+# Temporary files
+tmp
+temp
+*.tmp
+*.temp
+*.log
+
+# Build artifacts
+bin
+dist
+
+# Cursor/editor config
+.cursor
+.cursorignore

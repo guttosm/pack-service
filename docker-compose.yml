@@ -1,0 +1,102 @@
+services:
+  pack-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pack-service:${APP_VERSION:-1.0.0}
+    container_name: pack-service
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - PORT=8080
+      # MongoDB
+      - MONGODB_ENABLED=${MONGODB_ENABLED:-true}
+      - MONGODB_URI=mongodb://${MONGO_APP_USER:-pack_user}:${MONGO_APP_PASSWORD:-pack_password}@mongodb:27017/${MONGODB_DATABASE:-pack_service}?authSource=${MONGODB_DATABASE:-pack_service}
+      - MONGODB_DATABASE=${MONGODB_DATABASE:-pack_service}
+      - MONGODB_LOGS_TTL=${MONGODB_LOGS_TTL:-720h}
+      # Rate Limiting & Cache
+      - RATE_LIMIT=${RATE_LIMIT:-100}
+      - RATE_WINDOW=${RATE_WINDOW:-1m}
+      - CACHE_SIZE=${CACHE_SIZE:-1000}
+      - CACHE_TTL=${CACHE_TTL:-5m}
+      - PACK_SIZES=${PACK_SIZES:-250,500,1000,2000,5000}
+      # Authentication
+      - AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - API_KEYS=${API_KEYS:-}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-}
+      - JWT_REFRESH_SECRET_KEY=${JWT_REFRESH_SECRET_KEY:-}
+      - JWT_ACCESS_TOKEN_TTL=${JWT_ACCESS_TOKEN_TTL:-15m}
+      - JWT_REFRESH_TOKEN_TTL=${JWT_REFRESH_TOKEN_TTL:-168h}
+      # CORS
+      - CORS_ORIGINS=${CORS_ORIGINS:-}
+      # Swagger Auth (optional)
+      - SWAGGER_USER=${SWAGGER_USER:-}
+      - SWAGGER_PASS=${SWAGGER_PASS:-}
+      # Circuit Breaker
+      - CIRCUIT_BREAKER_FAILURE_THRESHOLD=${CIRCUIT_BREAKER_FAILURE_THRESHOLD:-5}
+      - CIRCUIT_BREAKER_SUCCESS_THRESHOLD=${CIRCUIT_BREAKER_SUCCESS_THRESHOLD:-2}
+      - CIRCUIT_BREAKER_TIMEOUT=${CIRCUIT_BREAKER_TIMEOUT:-30s}
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - pack-network
+    security_opt:
+      - no-new-privileges:true
+
+  mongodb:
+    image: mongo:7
+    container_name: pack-mongodb
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:-root}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-rootpassword}
+      - MONGO_INITDB_DATABASE=${MONGODB_DATABASE:-pack_service}
+      - MONGO_APP_USER=${MONGO_APP_USER:-pack_user}
+      - MONGO_APP_PASSWORD=${MONGO_APP_PASSWORD:-pack_password}
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "-u", "${MONGO_ROOT_USER:-root}", "-p", "${MONGO_ROOT_PASSWORD:-rootpassword}", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - pack-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  pack-network:
+    driver: bridge

@@ -1,0 +1,30 @@
+with-expecter: true
+testonly: false
+filename: "{{.InterfaceName | snakecase}}_mock.go"
+dir: "internal/mocks"
+outpkg: "mocks"
+disable-version-string: true
+resolve-type-alias: false
+packages:
+  github.com/guttosm/pack-service/internal/service:
+    interfaces:
+      PackCalculator:
+      LoggingService:
+      AuthService:
+      RoleService:
+      PermissionService:
+      PackSizesService:
+      TokenService:
+  github.com/guttosm/pack-service/internal/service/cache:
+    interfaces:
+      Cache:
+      CacheWithMetrics:
+  github.com/guttosm/pack-service/internal/http:
+    interfaces:
+      HealthChecker:
+  github.com/guttosm/pack-service/internal/repository:
+    interfaces:
+      UserRepositoryInterface:
+      RoleRepositoryInterface:
+      PermissionRepositoryInterface:
+      TokenRepositoryInterface:

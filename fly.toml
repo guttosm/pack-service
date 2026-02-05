@@ -1,0 +1,45 @@
+# Fly.io configuration for pack-service
+# Deploy with: fly deploy
+
+app = "pack-service"
+primary_region = "ams"  # Amsterdam, Netherlands
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  RATE_WINDOW = "1m"
+  CACHE_TTL = "5m"
+  JWT_ACCESS_TOKEN_TTL = "15m"
+  JWT_REFRESH_TOKEN_TTL = "168h"
+  MONGODB_LOGS_TTL = "720h"
+  CIRCUIT_BREAKER_FAILURE_THRESHOLD = "5"
+  CIRCUIT_BREAKER_SUCCESS_THRESHOLD = "2"
+  CIRCUIT_BREAKER_TIMEOUT = "30s"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 250
+    soft_limit = 200
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  path = "/healthz"
+  protocol = "http"
+  timeout = "5s"
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

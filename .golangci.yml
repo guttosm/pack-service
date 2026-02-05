@@ -1,0 +1,53 @@
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - misspell
+    - unconvert
+  settings:
+    errcheck:
+      check-type-assertions: true
+    govet:
+      enable-all: false
+      enable:
+        - assign
+        - atomic
+        - bools
+        - cgocall
+        - composites
+        - copylocks
+        - errorsas
+        - httpresponse
+        - ifaceassert
+        - loopclosure
+        - lostcancel
+        - nilfunc
+        - printf
+        - shift
+        - stdmethods
+        - stringintconv
+        - structtag
+        - tests
+        - unmarshal
+        - unreachable
+        - unsafeptr
+        - unusedresult
+
+  exclusions:
+    rules:
+      - path: _integration_test\.go
+        linters:
+          - govet
+        text: "buildtag"
+      - path: _test\.go
+        linters:
+          - errcheck

@@ -1,0 +1,762 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "API for calculating optimal pack combinations to fulfill orders.",
+        "title": "Pack Service API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "https://github.com/guttosm/pack-service",
+            "email": "support@example.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/api/auth/login": {
+            "post": {
+                "description": "Authenticates a user and returns a JWT token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login user",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful login",
+                        "schema": {
+                            "$ref": "#/definitions/LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid credentials",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Invalidates access and refresh tokens. Access token is extracted from Authorization header, refresh token from X-Refresh-Token header.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Logout user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Refresh token",
+                        "name": "X-Refresh-Token",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful logout",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing refresh token",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/refresh": {
+            "post": {
+                "description": "Generates a new access token using a refresh token. Refresh token is extracted from X-Refresh-Token header.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Refresh access token",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Refresh token",
+                        "name": "X-Refresh-Token",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful token refresh",
+                        "schema": {
+                            "$ref": "#/definitions/LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing refresh token",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - invalid refresh token",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/register": {
+            "post": {
+                "description": "Creates a new user account and returns a JWT token",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Register new user",
+                "parameters": [
+                    {
+                        "description": "Registration information",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Successful registration",
+                        "schema": {
+                            "$ref": "#/definitions/LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict - user already exists",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/calculate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Calculates the optimal number of packs needed to fulfill an order. The service uses dynamic programming to find the combination that minimizes total items while using the fewest number of packs. Supports idempotency via Idempotency-Key header.\nExample request for 251 items\nExample request for large order\nExample error for invalid input\nExample error for missing API key\nExample error for rate limit exceeded\nExample error for server failure",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Packs"
+                ],
+                "summary": "Calculate packs for order",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Idempotency key for request deduplication",
+                        "name": "Idempotency-Key",
+                        "in": "header"
+                    },
+                    {
+                        "description": "Order information",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CalculatePacksRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer token (required if auth enabled)",
+                        "name": "Authorization",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful calculation",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - invalid input",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - missing or invalid JWT token",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden - insufficient permissions",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not found - resource not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "Too many requests - rate limit exceeded",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad gateway",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/pack-sizes": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the currently active pack size configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Pack Sizes"
+                ],
+                "summary": "Get active pack sizes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer token (required if auth enabled)",
+                        "name": "Authorization",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Active pack sizes",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - missing or invalid JWT token",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No active pack sizes found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Updates the active pack size configuration",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Pack Sizes"
+                ],
+                "summary": "Update pack sizes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer token (required if auth enabled)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "description": "Pack sizes configuration",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/UpdatePackSizesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Updated pack sizes",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - missing or invalid JWT token",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/pack-sizes/history": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all pack size configurations (history)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Pack Sizes"
+                ],
+                "summary": "List pack sizes history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer token (required if auth enabled)",
+                        "name": "Authorization",
+                        "in": "header"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit number of results",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Pack sizes history",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - missing or invalid JWT token",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/healthz": {
+            "get": {
+                "description": "Returns OK if the service is running. Used by Kubernetes and other orchestration platforms to determine if the service should be restarted.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Liveness probe",
+                "responses": {
+                    "200": {
+                        "description": "Service is alive",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/readyz": {
+            "get": {
+                "description": "Returns OK if all dependencies are healthy and the service is ready to accept traffic. Used by load balancers and orchestration platforms.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Readiness probe",
+                "responses": {
+                    "200": {
+                        "description": "Service is ready",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "503": {
+                        "description": "Service is not ready",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "CalculatePacksRequest": {
+            "description": "Request to calculate optimal pack combination for an order",
+            "type": "object",
+            "required": [
+                "items_ordered"
+            ],
+            "properties": {
+                "items_ordered": {
+                    "description": "ItemsOrdered is the number of items the customer wants to order.\nMust be greater than 0.",
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 251
+                },
+                "pack_sizes": {
+                    "description": "PackSizes is an optional list of pack sizes to use for calculation.\nIf not provided, uses server-configured pack sizes.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        23,
+                        31,
+                        53
+                    ]
+                }
+            }
+        },
+        "ErrorResponse": {
+            "description": "Standardized error response",
+            "type": "object",
+            "properties": {
+                "details": {
+                    "description": "Details contains additional error details (optional)\nExample: {\"field\": \"error message\"}",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "error": {
+                    "type": "string",
+                    "example": "invalid_request"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "items_ordered: must be a positive integer"
+                },
+                "request_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2025-01-28T10:00:00Z"
+                },
+                "trace_id": {
+                    "type": "string",
+                    "example": "trace-123"
+                }
+            }
+        },
+        "LoginRequest": {
+            "description": "Request to authenticate a user",
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "description": "Email is the user's email address.",
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "password": {
+                    "description": "Password is the user's password.",
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "password123"
+                }
+            }
+        },
+        "LoginResponse": {
+            "description": "Successful authentication response with JWT tokens",
+            "type": "object",
+            "properties": {
+                "refresh_token": {
+                    "description": "RefreshToken is the JWT refresh token.",
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "token": {
+                    "description": "Token is the JWT access token.",
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                },
+                "user": {
+                    "description": "User contains the authenticated user information.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/UserResponse"
+                        }
+                    ]
+                }
+            }
+        },
+        "RegisterRequest": {
+            "description": "Request to register a new user",
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "description": "Email is the user's email address.",
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "name": {
+                    "description": "Name is the user's full name (optional).",
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "password": {
+                    "description": "Password is the user's password (minimum 6 characters).",
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "password123"
+                },
+                "username": {
+                    "description": "Username is the user's unique username.",
+                    "type": "string",
+                    "maxLength": 30,
+                    "minLength": 3,
+                    "example": "johndoe"
+                }
+            }
+        },
+        "SuccessResponse": {
+            "description": "Successful API response wrapper",
+            "type": "object",
+            "properties": {
+                "data": {
+                    "description": "Data contains the actual response data (PackResult for calculate endpoint)\nExample: {\"ordered_items\": 251, \"total_items\": 500, \"packs\": [{\"size\": 500, \"quantity\": 1}]}",
+                    "type": "object"
+                },
+                "request_id": {
+                    "description": "RequestID is the unique request identifier",
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "timestamp": {
+                    "description": "Timestamp is when the response was generated",
+                    "type": "string",
+                    "example": "2025-01-28T10:00:00Z"
+                }
+            }
+        },
+        "UpdatePackSizesRequest": {
+            "type": "object",
+            "required": [
+                "sizes"
+            ],
+            "properties": {
+                "created_by": {
+                    "description": "CreatedBy is the identifier of who created this configuration.",
+                    "type": "string"
+                },
+                "sizes": {
+                    "description": "Sizes is the list of pack sizes to use.",
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "UserResponse": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "description": "Email is the user's email address.",
+                    "type": "string",
+                    "example": "user@example.com"
+                },
+                "name": {
+                    "description": "Name is the user's full name.",
+                    "type": "string",
+                    "example": "John Doe"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "ApiKeyAuth": {
+            "description": "API key for authentication. Required if authentication is enabled.",
+            "type": "apiKey",
+            "name": "X-API-Key",
+            "in": "header"
+        }
+    }
+}
