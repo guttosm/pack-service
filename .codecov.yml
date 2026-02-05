@@ -1,0 +1,59 @@
+codecov:
+  require_ci_to_pass: true
+  notify:
+    wait_for_ci: false
+
+coverage:
+  precision: 2
+  round: down
+  range: "70...100"
+  status:
+    project:
+      default:
+        target: 79%
+        threshold: 1%
+        base: auto
+        branches:
+          - main
+          - develop
+    patch:
+      default:
+        target: 70%
+        threshold: 1%
+
+# Exclude directories and files from coverage
+# Codecov will ignore these paths when calculating coverage
+ignore:
+  - "docs/**"
+  - "internal/mocks/**"
+  - "cmd/**"
+  - "internal/testutil/**"
+  - "vendor/**"
+  - "**/*_test.go"
+  - "**/*.pb.go"
+  - "docs"
+  - "mocks"
+  - "cmd"
+  - "testutil"
+  - "vendor"
+
+# Include integration test coverage
+# Flags allow tracking unit and integration coverage separately
+flags:
+  unit:
+    paths:
+      - "internal"
+      - "config"
+      - "scripts"
+    carryforward: false
+  integration:
+    paths:
+      - "internal"
+      - "config"
+      - "scripts"
+    carryforward: false
+
+comment:
+  layout: "reach,diff,flags,tree,reach"
+  behavior: default
+  require_changes: false

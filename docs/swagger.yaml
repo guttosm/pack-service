@@ -1,0 +1,532 @@
+basePath: /
+definitions:
+  CalculatePacksRequest:
+    description: Request to calculate optimal pack combination for an order
+    properties:
+      items_ordered:
+        description: |-
+          ItemsOrdered is the number of items the customer wants to order.
+          Must be greater than 0.
+        example: 251
+        minimum: 1
+        type: integer
+      pack_sizes:
+        description: |-
+          PackSizes is an optional list of pack sizes to use for calculation.
+          If not provided, uses server-configured pack sizes.
+        example:
+        - 23
+        - 31
+        - 53
+        items:
+          type: integer
+        type: array
+    required:
+    - items_ordered
+    type: object
+  ErrorResponse:
+    description: Standardized error response
+    properties:
+      details:
+        additionalProperties:
+          type: string
+        description: |-
+          Details contains additional error details (optional)
+          Example: {"field": "error message"}
+        type: object
+      error:
+        example: invalid_request
+        type: string
+      message:
+        example: 'items_ordered: must be a positive integer'
+        type: string
+      request_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      timestamp:
+        example: "2025-01-28T10:00:00Z"
+        type: string
+      trace_id:
+        example: trace-123
+        type: string
+    type: object
+  LoginRequest:
+    description: Request to authenticate a user
+    properties:
+      email:
+        description: Email is the user's email address.
+        example: user@example.com
+        type: string
+      password:
+        description: Password is the user's password.
+        example: password123
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  LoginResponse:
+    description: Successful authentication response with JWT tokens
+    properties:
+      refresh_token:
+        description: RefreshToken is the JWT refresh token.
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      token:
+        description: Token is the JWT access token.
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      user:
+        allOf:
+        - $ref: '#/definitions/UserResponse'
+        description: User contains the authenticated user information.
+    type: object
+  RegisterRequest:
+    description: Request to register a new user
+    properties:
+      email:
+        description: Email is the user's email address.
+        example: user@example.com
+        type: string
+      name:
+        description: Name is the user's full name (optional).
+        example: John Doe
+        type: string
+      password:
+        description: Password is the user's password (minimum 6 characters).
+        example: password123
+        minLength: 6
+        type: string
+      username:
+        description: Username is the user's unique username.
+        example: johndoe
+        maxLength: 30
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  SuccessResponse:
+    description: Successful API response wrapper
+    properties:
+      data:
+        description: |-
+          Data contains the actual response data (PackResult for calculate endpoint)
+          Example: {"ordered_items": 251, "total_items": 500, "packs": [{"size": 500, "quantity": 1}]}
+        type: object
+      request_id:
+        description: RequestID is the unique request identifier
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      timestamp:
+        description: Timestamp is when the response was generated
+        example: "2025-01-28T10:00:00Z"
+        type: string
+    type: object
+  UpdatePackSizesRequest:
+    properties:
+      created_by:
+        description: CreatedBy is the identifier of who created this configuration.
+        type: string
+      sizes:
+        description: Sizes is the list of pack sizes to use.
+        items:
+          type: integer
+        minItems: 1
+        type: array
+    required:
+    - sizes
+    type: object
+  UserResponse:
+    properties:
+      email:
+        description: Email is the user's email address.
+        example: user@example.com
+        type: string
+      name:
+        description: Name is the user's full name.
+        example: John Doe
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: https://github.com/guttosm/pack-service
+  description: API for calculating optimal pack combinations to fulfill orders.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Pack Service API
+  version: 1.0.0
+paths:
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns a JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful login
+          schema:
+            $ref: '#/definitions/LoginResponse'
+        "400":
+          description: Bad request - invalid input
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: Unauthorized - invalid credentials
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Login user
+      tags:
+      - Auth
+  /api/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidates access and refresh tokens. Access token is extracted
+        from Authorization header, refresh token from X-Refresh-Token header.
+      parameters:
+      - default: Bearer
+        description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Refresh token
+        in: header
+        name: X-Refresh-Token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful logout
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad request - missing refresh token
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout user
+      tags:
+      - Auth
+  /api/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Generates a new access token using a refresh token. Refresh token
+        is extracted from X-Refresh-Token header.
+      parameters:
+      - description: Refresh token
+        in: header
+        name: X-Refresh-Token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful token refresh
+          schema:
+            $ref: '#/definitions/LoginResponse'
+        "400":
+          description: Bad request - missing refresh token
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: Unauthorized - invalid refresh token
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Refresh access token
+      tags:
+      - Auth
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account and returns a JWT token
+      parameters:
+      - description: Registration information
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Successful registration
+          schema:
+            $ref: '#/definitions/LoginResponse'
+        "400":
+          description: Bad request - invalid input
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "409":
+          description: Conflict - user already exists
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      summary: Register new user
+      tags:
+      - Auth
+  /api/calculate:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Calculates the optimal number of packs needed to fulfill an order. The service uses dynamic programming to find the combination that minimizes total items while using the fewest number of packs. Supports idempotency via Idempotency-Key header.
+        Example request for 251 items
+        Example request for large order
+        Example error for invalid input
+        Example error for missing API key
+        Example error for rate limit exceeded
+        Example error for server failure
+      parameters:
+      - description: Idempotency key for request deduplication
+        in: header
+        name: Idempotency-Key
+        type: string
+      - description: Order information
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/CalculatePacksRequest'
+      - description: Bearer token (required if auth enabled)
+        in: header
+        name: Authorization
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successful calculation
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad request - invalid input
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: Unauthorized - missing or invalid JWT token
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "403":
+          description: Forbidden - insufficient permissions
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Not found - resource not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "429":
+          description: Too many requests - rate limit exceeded
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "502":
+          description: Bad gateway
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "503":
+          description: Service unavailable
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Calculate packs for order
+      tags:
+      - Packs
+  /api/pack-sizes:
+    get:
+      consumes:
+      - application/json
+      description: Returns the currently active pack size configuration
+      parameters:
+      - description: Bearer token (required if auth enabled)
+        in: header
+        name: Authorization
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Active pack sizes
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "401":
+          description: Unauthorized - missing or invalid JWT token
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: No active pack sizes found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get active pack sizes
+      tags:
+      - Pack Sizes
+    put:
+      consumes:
+      - application/json
+      description: Updates the active pack size configuration
+      parameters:
+      - description: Bearer token (required if auth enabled)
+        in: header
+        name: Authorization
+        type: string
+      - description: Pack sizes configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/UpdatePackSizesRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Updated pack sizes
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "401":
+          description: Unauthorized - missing or invalid JWT token
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update pack sizes
+      tags:
+      - Pack Sizes
+  /api/pack-sizes/history:
+    get:
+      consumes:
+      - application/json
+      description: Returns all pack size configurations (history)
+      parameters:
+      - description: Bearer token (required if auth enabled)
+        in: header
+        name: Authorization
+        type: string
+      - description: Limit number of results
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Pack sizes history
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "401":
+          description: Unauthorized - missing or invalid JWT token
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List pack sizes history
+      tags:
+      - Pack Sizes
+  /healthz:
+    get:
+      description: Returns OK if the service is running. Used by Kubernetes and other
+        orchestration platforms to determine if the service should be restarted.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is alive
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Liveness probe
+      tags:
+      - Health
+  /readyz:
+    get:
+      description: Returns OK if all dependencies are healthy and the service is ready
+        to accept traffic. Used by load balancers and orchestration platforms.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service is ready
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service is not ready
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Readiness probe
+      tags:
+      - Health
+securityDefinitions:
+  ApiKeyAuth:
+    description: API key for authentication. Required if authentication is enabled.
+    in: header
+    name: X-API-Key
+    type: apiKey
+swagger: "2.0"
